@@ -46,6 +46,7 @@ const db = new sqlite.Database("users.db", sqlite.OPEN_READWRITE, (err) => {
 });
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html");
