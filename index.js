@@ -2,7 +2,8 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const { getUsers, postUser, postExercise, getLogs } = require("./db");
+const { getUsers, postUser } = require("./users.js");
+const { postExercise, getLogs } = require("./exercises.js");
 
 require("dotenv").config();
 
