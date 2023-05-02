@@ -4,8 +4,8 @@ const moment = require("moment");
 const postExercise = (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { description, date } = req.body;
-    const duration = parseInt(req.body.duration);
+    const { description, date, duration } = req.body;
+    const durationNum = parseInt(req.body.duration);
 
     // Validate user id
     if (!userId || !description || !duration) {
@@ -34,7 +34,7 @@ const postExercise = (req, res) => {
       }
 
       // Check if duration is number and not negative
-      if (isNaN(duration) || duration < 0) {
+      if (isNaN(durationNum) || durationNum < 0) {
         return res.status(400).json({
           status: 400,
           success: false,
