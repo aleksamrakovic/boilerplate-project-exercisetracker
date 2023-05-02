@@ -1,16 +1,18 @@
 const { db } = require("./db");
+const moment = require("moment");
 
 const postExercise = (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { description, duration, date } = req.body;
+    const { description, date } = req.body;
+    const duration = parseInt(req.body.duration);
 
     // Validate user id
-    if (!userId) {
+    if (!userId || !description || !duration) {
       return res.status(400).json({
         status: 400,
         success: false,
-        error: "User id is required param",
+        error: "Missing required params",
       });
     }
 
@@ -31,34 +33,22 @@ const postExercise = (req, res) => {
         });
       }
 
-      // Validate request body
-      if (!description || !duration) {
+      // Check if duration is number and not negative
+      if (isNaN(duration) || duration < 0) {
         return res.status(400).json({
           status: 400,
           success: false,
-          error: "Description and duration are required fields",
+          error: "Duration must be a number and cannot be negative",
         });
       }
 
-      // Check if duration is negative
-      if (duration < 0) {
+      // validate the date format
+      if (date && !moment(date, "YYYY-MM-DD", true).isValid()) {
         return res.status(400).json({
           status: 400,
           success: false,
-          error: "Duration cannot be negative",
+          error: "Invalid date format",
         });
-      }
-
-      // Check if date is provided and in the correct format (yyyy-mm-dd)
-      if (date) {
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(date)) {
-          return res.status(400).json({
-            status: 400,
-            success: false,
-            error: "Invalid date format. Date should be in yyyy-mm-dd format",
-          });
-        }
       }
 
       // Default to current date if not provided
@@ -155,6 +145,8 @@ const getLogs = (req, res) => {
       params.push(toDatePlusOneDay.toISOString());
     }
 
+    // add order by date in descending order
+    sql += ` ORDER BY date ASC`;
     sql += ` LIMIT ?`;
     params.push(limit);
 
