@@ -121,36 +121,36 @@ const getLogs = (req, res) => {
       });
     }
 
-    let sql = `SELECT * FROM exercises WHERE userId = ?`;
+    let countSql = `SELECT COUNT(*) as count FROM exercises WHERE userId = ?`;
+    let logsSql = `SELECT * FROM exercises WHERE userId = ?`;
+
     const params = [userId];
 
-    // add optional date range and limit to the SQL query
+    // add optional date range to the SQL query
     if (from && to) {
       // add one day to the "to" date to include logs up to and including that date
       const toDatePlusOneDay = new Date(
         new Date(to).getTime() + 24 * 60 * 60 * 1000
       );
 
-      sql += ` AND date BETWEEN ? AND ?`;
+      countSql += ` AND date BETWEEN ? AND ?`;
+      logsSql += ` AND date BETWEEN ? AND ?`;
       params.push(from, toDatePlusOneDay.toISOString());
     } else if (from) {
-      sql += ` AND date >= ?`;
+      countSql += ` AND date >= ?`;
+      logsSql += ` AND date >= ?`;
       params.push(from);
     } else if (to) {
       const toDatePlusOneDay = new Date(
         new Date(to).getTime() + 24 * 60 * 60 * 1000
       );
 
-      sql += ` AND date <= ?`;
+      countSql += ` AND date <= ?`;
+      logsSql += ` AND date <= ?`;
       params.push(toDatePlusOneDay.toISOString());
     }
 
-    // add order by date in descending order
-    sql += ` ORDER BY date ASC`;
-    sql += ` LIMIT ?`;
-    params.push(limit);
-
-    db.all(sql, params, (err, rows) => {
+    db.get(countSql, params, (err, countRow) => {
       if (err) {
         return res.status(500).json({
           status: 500,
@@ -159,7 +159,21 @@ const getLogs = (req, res) => {
         });
       }
 
-      db.get("SELECT * FROM users WHERE id = ?", userId, (err, user) => {
+      if (!countRow) {
+        return res.status(404).json({
+          status: 404,
+          success: false,
+          error: "No logs found for user",
+        });
+      }
+
+      const totalCount = countRow.count;
+
+      // add order by date in descending order and limit to the SQL query
+      logsSql += ` ORDER BY date ASC LIMIT ?`;
+      params.push(limit);
+
+      db.all(logsSql, params, (err, rows) => {
         if (err) {
           return res.status(500).json({
             status: 500,
@@ -168,36 +182,44 @@ const getLogs = (req, res) => {
           });
         }
 
-        console.log(user, userId);
+        db.get("SELECT * FROM users WHERE id = ?", userId, (err, user) => {
+          if (err) {
+            return res.status(500).json({
+              status: 500,
+              success: false,
+              error: "Internal Server Error",
+            });
+          }
 
-        if (!user) {
-          return res.status(404).json({
-            status: 404,
-            success: false,
-            error: "User not found",
+          if (!user) {
+            return res.status(404).json({
+              status: 404,
+              success: false,
+              error: "User not found",
+            });
+          }
+
+          const logs = rows.map((log) => {
+            return {
+              id: log.ID,
+              description: log.description,
+              duration: log.duration,
+              date: log.date,
+            };
           });
-        }
 
-        const logs = rows.map((log) => {
-          return {
-            id: log.ID,
-            description: log.description,
-            duration: log.duration,
-            date: log.date,
+          const responseData = {
+            id: user.id,
+            username: user.username,
+            count: totalCount,
+            log: logs,
           };
-        });
 
-        const responseData = {
-          id: user.id,
-          username: user.username,
-          count: logs.length,
-          log: logs,
-        };
-
-        return res.status(200).json({
-          status: 200,
-          success: true,
-          data: responseData,
+          return res.status(200).json({
+            status: 200,
+            success: true,
+            data: responseData,
+          });
         });
       });
     });
